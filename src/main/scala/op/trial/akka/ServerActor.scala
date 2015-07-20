@@ -32,29 +32,35 @@ class ServerActor(val app: String, val port: Int, val mappings: Map[String, Prop
     case Stop => context stop self
   }
 
-  val httpHandler = new HttpHandler {
+  private[this] val httpHandler = new HttpHandler {
     def handle(exchange: HttpExchange) {
       val path = "/" + new URI(s"/$app").relativize(exchange.getRequestURI).getPath
+      def pending(workerProps: Props) {
+        val worker = context.actorOf(workerProps)
+        exchanges += worker -> exchange
+      }
       mappings get path match {
-        case Some(workerProps) => val worker = context.actorOf(workerProps)
-                                  exchanges += worker -> exchange
-        case None => exchange.sendResponseHeaders(404, 0L)
-                     exchange.getResponseBody.close()
+        case Some(workerProps) => pending(workerProps)
+        case None => writeResponse(404, Array.empty[Byte], exchange)
       }
     }
   }
 
-  private def respond(status: Int, body: Array[Byte]) = {
+  private def respond(status: Int, body: Array[Byte]) {
     import context.dispatcher
     val worker = sender()
     exchanges get worker foreach { exchange =>
       Future {
-        exchange.sendResponseHeaders(status, 0L)
-        exchange.getResponseBody.write(body)
-        exchange.getResponseBody.close()
+        writeResponse(status, body, exchange)
         exchanges -= worker
       }
     }
+  }
+
+  private def writeResponse(status: Int, body: Array[Byte], exchange: HttpExchange): Unit = {
+    exchange.sendResponseHeaders(status, 0L)
+    exchange.getResponseBody.write(body)
+    exchange.getResponseBody.close()
   }
 }
 
