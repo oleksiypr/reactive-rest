@@ -47,7 +47,7 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
         )
       )
     ))
-    withClue("GET request for /foo service") {
+    withClue("success") {
       val req = url(s"http://localhost:$port/$app/foo")
       val resp = Http(req)
       assert(Await.result(resp, 1 second).getStatusCode == 200)
@@ -58,6 +58,11 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
       val resp = Http(req)
       assert(Await.result(resp, 1 second).getStatusCode == 500)
       assert(Await.result(resp, 0 second).getResponseBody == "error message")
+    }
+    withClue("not found") {
+      val req = url(s"http://localhost:$port/$app/not_found")
+      val resp = Http(req)
+      assert(Await.result(resp, 1 second).getStatusCode == 404)
     }
 
     system stop server
