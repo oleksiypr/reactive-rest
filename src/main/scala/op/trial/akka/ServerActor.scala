@@ -1,0 +1,60 @@
+package op.trial.akka
+
+import java.net.{URI, InetSocketAddress}
+import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
+import akka.actor.{ActorRef, Props, Actor}
+import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
+import ServerActor._
+
+import scala.util.{Failure, Success}
+
+class ServerActor(val app: String, val port: Int, val mappings: Map[String, Props] = Map.empty) extends Actor {
+  private val server = HttpServer.create(new InetSocketAddress(port), 0)
+  private val executor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue)
+
+  private[this] var exchanges = Map.empty[ActorRef, HttpExchange]
+
+  override def preStart() {
+    server.setExecutor(executor)
+    server.createContext(s"/$app", httpHandler)
+    server.start()
+  }
+
+  override def postStop() {
+    server.stop(1)
+    executor.shutdown()
+  }
+
+  val receive: Receive = {
+    case Success(res) => respond(200, res.toString.getBytes)
+    case Failure(cause) => respond(500, cause.getMessage.getBytes)
+    case Stop => context stop self
+  }
+
+  val httpHandler = new HttpHandler {
+    def handle(exchange: HttpExchange) {
+      val path = "/" + new URI(s"/$app").relativize(exchange.getRequestURI).getPath
+      mappings get path match {
+        case Some(workerProps) => val worker = context.actorOf(workerProps)
+                                  exchanges += worker -> exchange
+        case None => exchange.sendResponseHeaders(404, 0L)
+                     exchange.getResponseBody.close()
+      }
+    }
+  }
+
+  private def respond(status: Int, body: Array[Byte]) = {
+    val worker = sender()
+    exchanges get worker foreach { exchange =>
+      exchange.sendResponseHeaders(status, 0L)
+      exchange.getResponseBody.write(body)
+      exchange.getResponseBody.close()
+      exchanges -= worker
+    }
+  }
+}
+
+object ServerActor {
+  case object Stop
+}
+
