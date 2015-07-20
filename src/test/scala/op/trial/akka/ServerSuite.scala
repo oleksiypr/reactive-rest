@@ -4,6 +4,7 @@ import java.net.{InetSocketAddress, Socket}
 
 import akka.actor.{Actor, Props, ActorSystem}
 import akka.testkit.TestKit
+import com.ning.http.client.Response
 import org.scalatest.{BeforeAndAfterEach, FunSuiteLike, BeforeAndAfterAll}
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -24,16 +25,16 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
   override def afterAll() = system.shutdown()
 
   test("server should listen a port") {
-    assert(!isListened(port))
+    assert(!isListening(port))
     val server = system.actorOf(Props(new ServerActor(app, port)))
 
     Thread.sleep(500)
-    assert(isListened(port))
+    assert(isListening(port))
 
     withClue("server should shutdown and release the port when receive Stop message") {
       server ! Stop
       Thread.sleep(500)
-      assert(!isListened(port))
+      assert(!isListening(port))
     }
   }
 
@@ -59,13 +60,45 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
       assert(Await.result(resp, 0 second).getResponseBody == "error message")
     }
 
-    server ! Stop
+    system stop server
+  }
+
+  test("performance - server should handle multiple requests") {
+    val server = system.actorOf(Props(
+      new ServerActor(app, port,
+        mappings = Map(
+          "/foo" -> Props(new RespondOneMB))
+      )
+    ))
+    repeat(5) {
+      val n = 100
+      var i = 0
+      var responses = List.empty[dispatch.Future[Response]]
+      while (i < n) {
+        val req = url(s"http://localhost:$port/$app/foo")
+        val resp = Http(req)
+        responses ::= resp
+        i += 1
+      }
+      assert(Await.result(responses.head, 1 second).getStatusCode == 200)
+    }
+
+    withClue("and proceed with CPU load while IO in progress") {
+      //TODO
+    }
+
+    system stop server
+  }
+
+  private def repeat(times: Int)(body: => Unit) {
+    var i = 0
+    while (i < times) { body; i += 1 }
   }
 }
 
 object ServerSuite {
   class WorkerMock extends Actor {
-    context.parent ! Try("well done")
+    context.parent ! Success("well done")
     context stop self
     val receive: Receive = { case _ => () }
   }
@@ -74,8 +107,13 @@ object ServerSuite {
     context stop self
     val receive: Receive = { case _ => () }
   }
+  class RespondOneMB extends Actor {
+    context.parent ! Success(new String(new Array[Byte](1024*1024)))
+    context stop self
+    val receive: Receive = { case _ => () }
+  }
 
-  def isListened(port: Int): Boolean = Try {
+  def isListening(port: Int): Boolean = Try {
     val socket = new Socket()
     socket.connect(new InetSocketAddress("localhost", port), 500)
     socket.close()

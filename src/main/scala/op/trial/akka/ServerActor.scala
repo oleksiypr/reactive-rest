@@ -6,6 +6,7 @@ import akka.actor.{ActorRef, Props, Actor}
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 import ServerActor._
 
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 class ServerActor(val app: String, val port: Int, val mappings: Map[String, Props] = Map.empty) extends Actor {
@@ -44,12 +45,15 @@ class ServerActor(val app: String, val port: Int, val mappings: Map[String, Prop
   }
 
   private def respond(status: Int, body: Array[Byte]) = {
+    import context.dispatcher
     val worker = sender()
     exchanges get worker foreach { exchange =>
-      exchange.sendResponseHeaders(status, 0L)
-      exchange.getResponseBody.write(body)
-      exchange.getResponseBody.close()
-      exchanges -= worker
+      Future {
+        exchange.sendResponseHeaders(status, 0L)
+        exchange.getResponseBody.write(body)
+        exchange.getResponseBody.close()
+        exchanges -= worker
+      }
     }
   }
 }
