@@ -49,10 +49,8 @@ class ServerActor(val app: String, val port: Int, val mappings: Map[String, Prop
     import context.dispatcher
     val worker = sender()
     exchanges get worker foreach { exchange =>
-      Future {
-        writeResponse(status, body, exchange)
-        exchanges -= worker
-      }
+      exchanges -= worker
+      Future(writeResponse(status, body, exchange))
     }
   }
 
