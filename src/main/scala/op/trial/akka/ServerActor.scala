@@ -26,7 +26,10 @@ class ServerActor(val app: String, val port: Int, val mappings: Map[String, Prop
     executor.shutdown()
   }
 
-  val receive: Receive = {
+  def receive = service
+
+  private[this] val service: Receive = {
+    case Service(workerProps, exchange) => exchanges += context.actorOf(workerProps) -> exchange
     case Success(res) => respond(200, res.toString.getBytes)
     case Failure(cause) => respond(500, cause.getMessage.getBytes)
     case Stop => context stop self
@@ -35,12 +38,8 @@ class ServerActor(val app: String, val port: Int, val mappings: Map[String, Prop
   private[this] val httpHandler = new HttpHandler {
     def handle(exchange: HttpExchange) {
       val path = "/" + new URI(s"/$app").relativize(exchange.getRequestURI).getPath
-      def pending(workerProps: Props) {
-        val worker = context.actorOf(workerProps)
-        exchanges += worker -> exchange
-      }
       mappings get path match {
-        case Some(workerProps) => pending(workerProps)
+        case Some(workerProps) => self ! Service(workerProps, exchange)
         case None => writeResponse(404, Array.empty[Byte], exchange)
       }
     }
@@ -66,5 +65,6 @@ class ServerActor(val app: String, val port: Int, val mappings: Map[String, Prop
 
 object ServerActor {
   case object Stop
+  case class Service(workerProps: Props, exchange: HttpExchange)
 }
 

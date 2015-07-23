@@ -4,12 +4,14 @@ import akka.actor.Actor
 import scala.util.Try
 
 class RequestWorker[U, T](function: U => T, arg: U) extends Actor {
-  context.parent ! Try(function(arg))
-  context stop self
+  work()
 
-  def receive: Receive = {
-    case _ => ()
+  def receive =  noAction
+  def work() {
+    context.parent ! Try(function(arg))
+    context stop self
   }
+  val noAction: Receive = { case _ => () }
 }
 
 

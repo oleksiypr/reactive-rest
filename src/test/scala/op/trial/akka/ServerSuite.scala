@@ -1,12 +1,13 @@
 package op.trial.akka
 
 import java.net.{InetSocketAddress, Socket}
-
+import java.util.concurrent.TimeoutException
 import akka.actor.{Actor, Props, ActorSystem}
+import akka.routing.{Listen, Listeners}
 import akka.testkit.TestKit
 import com.ning.http.client.Response
 import org.scalatest.{BeforeAndAfterEach, FunSuiteLike, BeforeAndAfterAll}
-import scala.concurrent.Await
+import scala.concurrent.{Future, Await}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -45,13 +46,23 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
           "/foo" -> Props(new WorkerMock),
           "/error" -> Props(new ErrorWorker)
         )
-      )
+      ) with Listeners {
+        override val receive: Receive = listenerManagement orElse {
+          case msg => super.receive(msg); gossip(msg)
+        }
+      }
     ))
+    server ! Listen(testActor)
+
     withClue("success") {
       val req = url(s"http://localhost:$port/$app/foo")
       val resp = Http(req)
       assert(Await.result(resp, 1 second).getStatusCode == 200)
       assert(Await.result(resp, 0 second).getResponseBody == "well done")
+      assert (expectMsgPF() {
+        case Service(wp ,ex) => true
+        case _ => false
+      })
     }
     withClue("error response status in case of internal error") {
       val req = url(s"http://localhost:$port/$app/error")
@@ -72,27 +83,51 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
     val server = system.actorOf(Props(
       new ServerActor(app, port,
         mappings = Map(
-          "/foo" -> Props(new RespondOneMB))
+          "/foo" -> Props(new RespondOneMB),
+          "/bar" -> Props(new CpuAndIOLoad)
+        )
       )
     ))
-    repeat(5) {
-      val n = 100
+
+    withClue("latency due to IO operations") {
+      repeat(times = 1) {
+        val t0 = System.currentTimeMillis()
+        val n = 100
+        var i = 0
+        var responses = Vector.empty[dispatch.Future[Response]]
+        while (i < n) {
+          val req = url(s"http://localhost:$port/$app/foo")
+          val resp = Http(req)
+          responses :+= resp
+          i += 1
+        }
+        val res = concurrent.Future.sequence(responses)
+        Await.ready(res, 2 seconds)
+        println(s"Done in ${System.currentTimeMillis() - t0} millis")
+      }
+    }
+
+    //TODO uncomment when ready
+    /*
+    withClue("and proceed with CPU load while IO in progress") {
+      val n = 12
       var i = 0
       var responses = List.empty[dispatch.Future[Response]]
+      val t0 = System.currentTimeMillis()
       while (i < n) {
-        val req = url(s"http://localhost:$port/$app/foo")
+        val req = url(s"http://localhost:$port/$app/bar")
         val resp = Http(req)
         responses ::= resp
         i += 1
       }
-      assert(Await.result(responses.head, 1 second).getStatusCode == 200)
-    }
-
-    withClue("and proceed with CPU load while IO in progress") {
-      //TODO
+      import scala.concurrent.Future
+      val res = Future.sequence(responses)
+      Await.result(res, 5 second)
+      println(s"Done in ${System.currentTimeMillis() - t0} millis")
     }
 
     system stop server
+    */
   }
 
   private def repeat(times: Int)(body: => Unit) {
@@ -115,6 +150,17 @@ object ServerSuite {
   class RespondOneMB extends Actor {
     context.parent ! Success(new String(new Array[Byte](1024*1024)))
     context stop self
+    val receive: Receive = { case _ => () }
+  }
+  class CpuAndIOLoad extends Actor {
+    import context.dispatcher
+    try Await.ready(Future{ while (true) () }, 1 second) catch {
+      case ex : TimeoutException =>
+      case th: Throwable => throw th
+    }
+    context.parent ! Success(new String(Array.emptyByteArray))
+    context stop self
+
     val receive: Receive = { case _ => () }
   }
 
