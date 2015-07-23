@@ -90,21 +90,17 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
     ))
 
     withClue("latency due to IO operations") {
-      repeat(times = 1) {
-        val t0 = System.currentTimeMillis()
-        val n = 100
-        var i = 0
-        var responses = Vector.empty[dispatch.Future[Response]]
-        while (i < n) {
-          val req = url(s"http://localhost:$port/$app/foo")
-          val resp = Http(req)
-          responses :+= resp
-          i += 1
-        }
-        val res = concurrent.Future.sequence(responses)
-        Await.ready(res, 2 seconds)
-        println(s"Done in ${System.currentTimeMillis() - t0} millis")
+      val n = 100
+      var responses = Vector.empty[dispatch.Future[Response]]
+      var i = 0
+      while (i < n) {
+        val req = url(s"http://localhost:$port/$app/foo")
+        val resp = Http(req)
+        responses :+= resp
+        i += 1
       }
+      val res = concurrent.Future.sequence(responses)
+      Await.ready(res, 2 seconds)
     }
 
     //TODO uncomment when ready
@@ -125,33 +121,16 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
       Await.result(res, 5 second)
       println(s"Done in ${System.currentTimeMillis() - t0} millis")
     }
-
-    system stop server
     */
-  }
-
-  private def repeat(times: Int)(body: => Unit) {
-    var i = 0
-    while (i < times) { body; i += 1 }
+    system stop server
   }
 }
 
 object ServerSuite {
-  class WorkerMock extends Actor {
-    context.parent ! Success("well done")
-    context stop self
-    val receive: Receive = { case _ => () }
-  }
-  class ErrorWorker extends Actor {
-    context.parent ! Failure(new Error("error message"))
-    context stop self
-    val receive: Receive = { case _ => () }
-  }
-  class RespondOneMB extends Actor {
-    context.parent ! Success(new String(new Array[Byte](1024*1024)))
-    context stop self
-    val receive: Receive = { case _ => () }
-  }
+  class WorkerMock  extends RequestWorker((_: Unit) => "well done", ())
+  class ErrorWorker extends RequestWorker((_: Unit) => throw new Error("error message"), ())
+  class RespondOneMB extends RequestWorker((_: Unit) => new String(new Array[Byte](1024*1024)), ())
+
   class CpuAndIOLoad extends Actor {
     import context.dispatcher
     try Await.ready(Future{ while (true) () }, 1 second) catch {
