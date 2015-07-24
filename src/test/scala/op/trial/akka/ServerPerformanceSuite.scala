@@ -4,11 +4,10 @@ import akka.actor.{Actor, Props, ActorSystem}
 import akka.testkit.TestKit
 import com.ning.http.client.Response
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
-import scala.concurrent.{Future, Await}
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Success
-import java.util.concurrent.TimeoutException
 
 class ServerPerformanceSuite extends TestKit(ActorSystem("ServerPerformanceSuite"))
                                 with WordSpecLike
@@ -50,25 +49,20 @@ class ServerPerformanceSuite extends TestKit(ActorSystem("ServerPerformanceSuite
     }
 
     "proceed with CPU load while IO in progress " in {
-      //TODO uncomment when ready
-      /*
-      withClue("and proceed with CPU load while IO in progress") {
-        val n = 12
-        var i = 0
-        var responses = List.empty[dispatch.Future[Response]]
-        val t0 = System.currentTimeMillis()
-        while (i < n) {
-          val req = url(s"http://localhost:$port/$app/bar")
-          val resp = Http(req)
-          responses ::= resp
-          i += 1
-        }
-        import scala.concurrent.Future
-        val res = Future.sequence(responses)
-        Await.result(res, 5 second)
-        println(s"Done in ${System.currentTimeMillis() - t0} millis")
+      val n = 12
+      var i = 0
+      var responses = List.empty[dispatch.Future[Response]]
+      val t0 = System.currentTimeMillis()
+      while (i < n) {
+        val req = url(s"http://localhost:$port/$app/bar")
+        val resp = Http(req)
+        responses ::= resp
+        i += 1
       }
-      */
+      import scala.concurrent.Future
+      val res = Future.sequence(responses)
+      Await.result(res, 4 second)
+      println(s"Done in ${System.currentTimeMillis() - t0} millis")
     }
   }
 }
@@ -76,12 +70,11 @@ class ServerPerformanceSuite extends TestKit(ActorSystem("ServerPerformanceSuite
 object ServerPerformanceSuite {
   class RespondOneMB extends RequestWorker((_: Unit) => new String(new Array[Byte](1024*1024)), ())
   class CpuAndIOLoad extends Actor {
-    import context.dispatcher
-    try Await.ready(Future{ while (true) () }, 1 second) catch {
-      case ex : TimeoutException =>
-      case th: Throwable => throw th
-    }
-    context.parent ! Success(new String(Array.emptyByteArray))
+    import math._
+    val n = 1500*10000
+    for (i <- 1 to n) atan(sqrt(pow(5.1, 1.2)))
+
+    context.parent ! Success(new String(new String(new Array[Byte](1024*1024))))
     context stop self
 
     val receive: Receive = { case _ => () }

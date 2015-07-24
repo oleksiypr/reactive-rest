@@ -40,10 +40,10 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
   test("server should receive HTTP requests") {
     val server = testServer(
       mappings = Map(
-      "/foo" -> Props(new WorkerMock),
-      "/bar" -> Props(new WorkerMock),
-      "/error" -> Props(new ErrorWorker)
-    ),"server-receive-http")
+        "/foo" -> Props(new WorkerMock),
+        "/bar" -> Props(new WorkerMock),
+        "/error" -> Props(new ErrorWorker)
+      ),"server-receive-http")
 
     withClue("server should receive 'Service' and 'Success' messages") {
       val n = 1

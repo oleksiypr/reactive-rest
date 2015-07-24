@@ -8,9 +8,7 @@ import scala.util.{Failure, Success}
 
 class RequestWorkerSuit extends TestKit(ActorSystem("RequestWorkerSuit")) with WordSpecLike
                                                                           with BeforeAndAfterAll {
-  override protected def afterAll() {
-    system.shutdown()
-  }
+  override protected def afterAll() = system.shutdown()
 
   "RequestWorker" must {
     "perform operation and stop itself" in {

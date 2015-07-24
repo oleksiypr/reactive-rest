@@ -54,7 +54,7 @@ class ServerActor(val app: String, val port: Int, val mappings: Map[String, Prop
     }
   }
 
-  private def writeResponse(status: Int, body: Array[Byte], exchange: HttpExchange): Unit = {
+  private def writeResponse(status: Int, body: Array[Byte], exchange: HttpExchange) {
     exchange.sendResponseHeaders(status, 0L)
     exchange.getResponseBody.write(body)
     exchange.getResponseBody.close()
