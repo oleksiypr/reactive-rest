@@ -1,6 +1,5 @@
 package op.trial.akka
 
-import java.net.{InetSocketAddress, Socket}
 import akka.actor.{Props, ActorSystem}
 import akka.routing.{Listen, Listeners}
 import akka.testkit.TestKit
@@ -9,6 +8,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import java.net.{InetSocketAddress, Socket}
 
 class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
                      with FunSuiteLike
@@ -37,36 +37,31 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
     }
   }
 
-  test("server should receive 'Service' and 'Success' messages") {
-    val server = testServer(
-      mappings = Map("/foo" -> Props(new WorkerMock)), name = "test-actor-messages-server")
-
-    val n = 100
-    var serviceMessages = 0
-    var successMessages = 0
-
-    for (i <- 1 to n) Http(url(s"http://localhost:$port/$app/foo"))
-
-    receiveWhile(1 second) {
-      case Service(wp, ex) => serviceMessages += 1
-      case Success(resp) => successMessages += 1
-    }
-    assert(serviceMessages == n)
-    assert(successMessages == n)
-
-    system stop server
-  }
-
   test("server should receive HTTP requests") {
     val server = testServer(
       mappings = Map(
       "/foo" -> Props(new WorkerMock),
+      "/bar" -> Props(new WorkerMock),
       "/error" -> Props(new ErrorWorker)
     ),"server-receive-http")
 
+    withClue("server should receive 'Service' and 'Success' messages") {
+      val n = 1
+      var serviceMessages = 0
+      var successMessages = 0
+      for (i <- 1 to n) Http(url(s"http://localhost:$port/$app/bar"))
+
+      receiveWhile(1 second) {
+        case Service(wp, ex) => serviceMessages += 1
+        case Success(resp) => successMessages += 1
+      }
+      assert(serviceMessages == n)
+      assert(successMessages == n)
+    }
+
     withClue("success") {
       val resp = Http(url(s"http://localhost:$port/$app/foo"))
-      val result = Await.result(resp, 1 second)
+      val result = Await.result(resp, 2 second)
       assert(result.getStatusCode == 200)
       assert(result.getResponseBody == "well done")
       assert (expectMsgPF() {
@@ -76,13 +71,13 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
     }
     withClue("error response status in case of internal error") {
       val resp = Http(url(s"http://localhost:$port/$app/error"))
-      val result = Await.result(resp, 1 second)
+      val result = Await.result(resp, 2 second)
       assert(result.getStatusCode == 500)
       assert(result.getResponseBody == "error message")
     }
     withClue("not found") {
       val resp = Http(url(s"http://localhost:$port/$app/not_found"))
-      assert(Await.result(resp, 1 second).getStatusCode == 404)
+      assert(Await.result(resp, 2 second).getStatusCode == 404)
     }
 
     system stop server
@@ -102,6 +97,7 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
 }
 
 object ServerSuite {
+  class WorkerMock1   extends RequestWorker((_: Unit) => "well done", ())
   class WorkerMock   extends RequestWorker((_: Unit) => "well done", ())
   class ErrorWorker  extends RequestWorker((_: Unit) => throw new Error("error message"), ())
 
