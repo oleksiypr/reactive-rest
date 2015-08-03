@@ -97,7 +97,6 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
 }
 
 object ServerSuite {
-  class WorkerMock1   extends RequestWorker((_: Unit) => "well done", ())
   class WorkerMock   extends RequestWorker((_: Unit) => "well done", ())
   class ErrorWorker  extends RequestWorker((_: Unit) => throw new Error("error message"), ())
 

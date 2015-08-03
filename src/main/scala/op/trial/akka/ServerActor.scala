@@ -1,15 +1,14 @@
 package op.trial.akka
 
-import java.net.{URI, InetSocketAddress}
-import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
 import akka.actor.{ActorRef, Props, Actor}
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
-import ServerActor._
-
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import java.net.{URI, InetSocketAddress}
+import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
 
 class ServerActor(val app: String, val port: Int, val mappings: Map[String, Props] = Map.empty) extends Actor {
+  import ServerActor._
   private val server = HttpServer.create(new InetSocketAddress(port), 0)
   private val executor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue)
 
