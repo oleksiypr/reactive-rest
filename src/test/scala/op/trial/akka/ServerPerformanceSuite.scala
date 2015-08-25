@@ -26,9 +26,9 @@ class ServerPerformanceSuite extends TestKit(ActorSystem("ServerPerformanceSuite
     )
   ), "performance-test-server")
 
-
   override protected def afterAll() {
     shutdown()
+    Http.shutdown()
   }
 
   "Server" must {
@@ -43,6 +43,7 @@ class ServerPerformanceSuite extends TestKit(ActorSystem("ServerPerformanceSuite
         responses :+= resp
         i += 1
       }
+
       val res = concurrent.Future.sequence(responses)
       Await.ready(res, 2.5 seconds)
       println(s"Done in ${System.currentTimeMillis() - t0} millis")

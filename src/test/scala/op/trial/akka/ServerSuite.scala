@@ -21,7 +21,10 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
   val port = 9090
   val app = "hello-app"
 
-  override def afterAll() = system.shutdown()
+  override def afterAll() {
+    system.shutdown()
+    Http.shutdown()
+  }
 
   test("server should listen a port") {
     assert(!isListening(port))
