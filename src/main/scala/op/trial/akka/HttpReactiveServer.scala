@@ -2,7 +2,6 @@ package op.trial.akka
 
 import akka.actor.{ActorRef, Props}
 import com.sun.net.httpserver.HttpExchange
-
 import scala.concurrent.Future
 
 class HttpReactiveServer(val app: String, val port: Int, val mappings: Map[String, Props] = Map.empty) extends ServerActor with HttpServerAware {

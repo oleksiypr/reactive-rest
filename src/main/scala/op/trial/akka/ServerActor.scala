@@ -5,7 +5,7 @@ import com.sun.net.httpserver.HttpExchange
 import scala.util.{Failure, Success}
 import ServerActor._
 
-abstract class ServerActor[T] extends Actor with ServerAware {
+abstract class ServerActor extends Actor with ServerAware {
   override def preStart() = startUp()
   override def postStop() = shutDown()
 
@@ -18,7 +18,6 @@ abstract class ServerActor[T] extends Actor with ServerAware {
     case Failure(cause) => respond(500, cause.getMessage.getBytes)
     case Stop => context stop self
   }
-
 }
 
 object ServerActor {
