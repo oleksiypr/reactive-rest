@@ -4,7 +4,7 @@ import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 import java.net.{URI, InetSocketAddress}
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
 
-trait HttpServerAware extends ServerAware {
+trait HttpServerAware extends LifeCicleAware {
   val port: Int
   val app: String
   def handleGet(path: String, exchange: HttpExchange)

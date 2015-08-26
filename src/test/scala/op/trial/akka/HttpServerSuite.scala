@@ -10,13 +10,13 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import java.net.{InetSocketAddress, Socket}
 
-class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
+class HttpServerSuite extends TestKit(ActorSystem("ServerSuite"))
                      with FunSuiteLike
                      with BeforeAndAfterAll
                      with BeforeAndAfterEach {
   import ServerActor._
   import dispatch._, Defaults._
-  import ServerSuite._
+  import HttpServerSuite._
 
   val port = 9090
   val app = "hello-app"
@@ -99,7 +99,7 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
   }
 }
 
-object ServerSuite {
+object HttpServerSuite {
   class WorkerMock   extends RequestWorker((_: Unit) => "well done", ())
   class ErrorWorker  extends RequestWorker((_: Unit) => throw new Error("error message"), ())
 

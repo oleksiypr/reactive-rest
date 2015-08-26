@@ -1,6 +1,6 @@
 package op.trial.akka
 
-trait ServerAware {
+trait LifeCicleAware {
   def startUp()
   def shutDown()
 }
