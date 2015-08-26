@@ -16,11 +16,9 @@ abstract class ServerActor extends Actor with LifeCicleAware {
     case Service(workerProps, exchange) => initWorker(workerProps, exchange)
     case Success(res) => respond(200, res.toString.getBytes)
     case Failure(cause) => respond(500, cause.getMessage.getBytes)
-    case Stop => context stop self
   }
 }
 
 object ServerActor {
-  case object Stop
   case class Service(workerProps: Props, exchange: HttpExchange)
 }

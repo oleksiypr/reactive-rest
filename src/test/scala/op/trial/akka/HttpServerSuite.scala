@@ -33,8 +33,8 @@ class HttpServerSuite extends TestKit(ActorSystem("ServerSuite"))
     Thread.sleep(500)
     assert(isListening(port))
 
-    withClue("server should shutdown and release the port when receive Stop message") {
-      server ! Stop
+    withClue("server should shutdown and release the port when stops") {
+      system stop server
       Thread.sleep(500)
       assert(!isListening(port))
     }
@@ -47,20 +47,6 @@ class HttpServerSuite extends TestKit(ActorSystem("ServerSuite"))
         "/bar" -> Props(new WorkerMock),
         "/error" -> Props(new ErrorWorker)
       ),"server-receive-http")
-
-    withClue("server should receive 'Service' and 'Success' messages") {
-      val n = 1
-      var serviceMessages = 0
-      var successMessages = 0
-      for (i <- 1 to n) Http(url(s"http://localhost:$port/$app/bar"))
-
-      receiveWhile(1 second) {
-        case Service(wp, ex) => serviceMessages += 1
-        case Success(resp) => successMessages += 1
-      }
-      assert(serviceMessages == n)
-      assert(successMessages == n)
-    }
 
     withClue("success") {
       val resp = Http(url(s"http://localhost:$port/$app/foo"))
