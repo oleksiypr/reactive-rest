@@ -28,7 +28,7 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
 
   test("server should listen a port") {
     assert(!isListening(port))
-    val server = system.actorOf(Props(new ServerActor(app, port)), "server-listen-port")
+    val server = system.actorOf(Props(new HttpReactiveServer(app, port)), "server-listen-port")
 
     Thread.sleep(500)
     assert(isListening(port))
@@ -88,7 +88,7 @@ class ServerSuite extends TestKit(ActorSystem("ServerSuite"))
 
   private def testServer(mappings: Map[String, Props], name: String) = {
     val server = system.actorOf(Props(
-      new ServerActor(app, port, mappings) with Listeners {
+      new HttpReactiveServer(app, port, mappings) with Listeners {
         override val receive: Receive = listenerManagement orElse {
           case msg => super.receive(msg); gossip(msg)
         }

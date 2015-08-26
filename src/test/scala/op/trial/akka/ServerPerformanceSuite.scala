@@ -18,7 +18,7 @@ class ServerPerformanceSuite extends TestKit(ActorSystem("ServerPerformanceSuite
   val port = 9090
   val app = "hello-app"
   val server = system.actorOf(Props(
-    new ServerActor(app, port,
+    new HttpReactiveServer(app, port,
       mappings = Map(
         "/foo" -> Props(new RespondOneMB),
         "/bar" -> Props(new CpuAndIOLoad)

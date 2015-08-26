@@ -1,44 +1,27 @@
 package op.trial.akka
 
-import akka.actor.{ActorRef, Props, Actor}
+import akka.actor.{Props, Actor}
 import com.sun.net.httpserver.HttpExchange
-import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import ServerActor._
 
-class ServerActor(val app: String, val port: Int, val mappings: Map[String, Props] = Map.empty) extends Actor with ServerAware {
-  import ServerActor._
-  private[this] var exchanges = Map.empty[ActorRef, HttpExchange]
-
+abstract class ServerActor[T] extends Actor with ServerAware {
   override def preStart() = startUp()
   override def postStop() = shutDown()
-  override def handlePath(path: String, exchange: HttpExchange) {
-    mappings get path match {
-      case Some(workerProps) => self ! Service(workerProps, exchange)
-      case None => writeResponse(404, Array.empty[Byte], exchange)
-    }
-  }
 
-  def receive = service
+  def initWorker(workerProps: Props, exchange: HttpExchange)
+  def respond(status: Int, body: Array[Byte])
 
-  private[this] val service: Receive = {
-    case Service(workerProps, exchange) => exchanges += context.actorOf(workerProps) -> exchange
+  val service: Receive = {
+    case Service(workerProps, exchange) => initWorker(workerProps, exchange)
     case Success(res) => respond(200, res.toString.getBytes)
     case Failure(cause) => respond(500, cause.getMessage.getBytes)
     case Stop => context stop self
   }
 
-  private def respond(status: Int, body: Array[Byte]) {
-    import context.dispatcher
-    val worker = sender()
-    exchanges get worker foreach { exchange =>
-      exchanges -= worker
-      Future(writeResponse(status, body, exchange))
-    }
-  }
 }
 
 object ServerActor {
   case object Stop
   case class Service(workerProps: Props, exchange: HttpExchange)
 }
-
