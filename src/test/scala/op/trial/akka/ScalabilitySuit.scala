@@ -29,13 +29,14 @@ class ScalabilitySuit extends TestKit(ActorSystem("ScalabilitySuit"))
       receiveWhile(1 second) {
         case WorkerCreated => workers += 1
       }
+      fail("test not completed")
     }
   }
 }
 
 object ScalabilitySuit {
-  class FakeWorker() extends Actor() {
-    val receive: Receive = { case _ => () }
+  class FakeWorker() extends WorkerActor {
+    def work() {}
   }
   class FakeServer extends ServerActor[Unit] with FakeLifeCicleAware {
     def success(res: Any, exchange: Unit) {}

@@ -1,9 +1,10 @@
 package op.trial.akka
 
-import akka.actor.{Actor, ActorRef, Props, ActorSystem}
+import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.testkit.TestKit
 import op.trial.akka.ScalabilitySuit.FakeLifeCicleAware
 import op.trial.akka.ServerActor._
+import op.trial.akka.util._
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSuiteLike}
 import scala.util.Success
 
@@ -21,7 +22,10 @@ class ServerActorSuite extends TestKit(ActorSystem("ServerActorSuit"))
     val server = system.actorOf(Props(new TestServerActor(testActor)))
     expectMsg(ServerLoad(0))
 
-    server ! Service(Props(new FakeWorker(testActor)), ())
+    server ! Service(Props(new ProbeFakeWorker(
+      probe = testActor,
+      messageToProbe = WorkerCreated,
+      messageToParent = Success("OK"))), ())
 
     withClue("server actor should create new worker on 'Service' message") {
       expectMsg(ServerLoad(1))
@@ -34,16 +38,10 @@ class ServerActorSuite extends TestKit(ActorSystem("ServerActorSuit"))
 }
 
 object ServerActorSuite {
-  case class WorkerCreated(workersCount: Int)
+  case object WorkerCreated
   case class ServerLoad(load: Int)
   case class ServerRespond(result: Any, workersCount: Int)
 
-  class FakeWorker(testActor: ActorRef) extends Actor {
-    testActor ! WorkerCreated
-    context.parent ! Success("OK")
-    context stop self
-    val receive: Receive = { case _ => () }
-  }
   class TestServerActor(probe: ActorRef) extends ServerActor[Unit] with FakeLifeCicleAware {
     probe ! ServerLoad(load)
 

@@ -1,20 +1,22 @@
 package op.trial.akka
 
-import akka.actor.{Actor, Props, ActorSystem}
-import akka.routing.{Listen, Listeners}
+import java.net.{InetSocketAddress, Socket}
+
+import akka.actor.{ActorSystem, Props}
 import akka.testkit.TestKit
-import org.scalatest.{BeforeAndAfterEach, FunSuiteLike, BeforeAndAfterAll}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike}
+import op.trial.akka.util._
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import java.net.{InetSocketAddress, Socket}
 
 class HttpServerSuite extends TestKit(ActorSystem("ServerSuite"))
-                     with FunSuiteLike
-                     with BeforeAndAfterAll
-                     with BeforeAndAfterEach {
-  import dispatch._, Defaults._
+                         with FunSuiteLike
+                         with BeforeAndAfterAll
+                         with BeforeAndAfterEach {
+  import dispatch._
+  import Defaults._
   import HttpServerSuite._
 
   val port = 9090
@@ -42,8 +44,8 @@ class HttpServerSuite extends TestKit(ActorSystem("ServerSuite"))
   test("server should receive HTTP requests") {
     val server = testServer(
       mappings = Map(
-        "/foo" -> Props(new FakeWorker),
-        "/error" -> Props(new ErrorWorker)
+        "/foo" -> Props(new FakeWorker(Success("well done"))),
+        "/error" -> Props(new FakeWorker(Failure(new Error("error message"))))
       ),"server-receive-http")
 
     withClue("success") {
@@ -71,17 +73,6 @@ class HttpServerSuite extends TestKit(ActorSystem("ServerSuite"))
 }
 
 object HttpServerSuite {
-  class FakeWorker extends Actor {
-    context.parent ! Success("well done")
-    context stop self
-    val receive: Actor.Receive = { case _ => () }
-  }
-  class ErrorWorker extends Actor {
-    context.parent ! Failure(new Error("error message"))
-    context stop self
-    val receive: Actor.Receive = { case _ => () }
-  }
-
   def isListening(port: Int): Boolean = Try {
     val socket = new Socket()
     socket.connect(new InetSocketAddress("localhost", port), 500)
