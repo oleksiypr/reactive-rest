@@ -1,6 +1,6 @@
 package op.trial.akka
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.Props
 import com.sun.net.httpserver.HttpExchange
 
 class HttpReactiveServer(val app: String, val port: Int, val mappings: Map[String, Props] = Map.empty) extends ServerActor[HttpExchange]
@@ -8,7 +8,7 @@ class HttpReactiveServer(val app: String, val port: Int, val mappings: Map[Strin
   override def handleGet(path: String, exchange: HttpExchange) {
     mappings get path match {
       case Some(workerProps) => self ! ServerActor.Service(workerProps, exchange)
-      case None => writeResponse(404, Array.empty[Byte], exchange)
+      case None => writeResponse(status = 404, Array.empty[Byte], exchange)
     }
   }
 

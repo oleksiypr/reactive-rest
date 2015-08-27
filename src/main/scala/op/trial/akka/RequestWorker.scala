@@ -1,6 +1,5 @@
 package op.trial.akka
 
-import akka.actor.Actor
 import scala.util.Try
 
 class RequestWorker[U, T](function: U => T, arg: U) extends WorkerActor {
