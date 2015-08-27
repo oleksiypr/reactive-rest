@@ -37,10 +37,9 @@ object ScalabilitySuit {
   class FakeWorker() extends Actor() {
     val receive: Receive = { case _ => () }
   }
-  class FakeServer extends ServerActor with FakeLifeCicleAware {
-    def initWorker(workerProps: Props, exchange: HttpExchange) {}
-    def success(res: Any) {}
-    def failure(cause: Throwable) {}
+  class FakeServer extends ServerActor[Unit] with FakeLifeCicleAware {
+    def success(res: Any, exchange: Unit) {}
+    def failure(cause: Throwable, exchange: Unit) {}
     def receive: Actor.Receive = { case _ => () }
   }
   trait FakeLifeCicleAware extends LifeCicleAware {

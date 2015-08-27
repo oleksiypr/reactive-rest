@@ -14,7 +14,6 @@ class HttpServerSuite extends TestKit(ActorSystem("ServerSuite"))
                      with FunSuiteLike
                      with BeforeAndAfterAll
                      with BeforeAndAfterEach {
-  import ServerActor._
   import dispatch._, Defaults._
   import HttpServerSuite._
 
@@ -67,17 +66,8 @@ class HttpServerSuite extends TestKit(ActorSystem("ServerSuite"))
     system stop server
   }
 
-  private def testServer(mappings: Map[String, Props], name: String) = {
-    val server = system.actorOf(Props(
-      new HttpReactiveServer(app, port, mappings) with Listeners {
-        override val receive: Receive = listenerManagement orElse {
-          case msg => super.receive(msg); gossip(msg)
-        }
-      }
-    ), name)
-    server ! Listen(testActor)
-    server
-  }
+  private def testServer(mappings: Map[String, Props], name: String) = system.actorOf(Props(
+      new HttpReactiveServer(app, port, mappings)), name)
 }
 
 object HttpServerSuite {
