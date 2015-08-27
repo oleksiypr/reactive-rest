@@ -3,6 +3,7 @@ package op.trial.akka
 
 import akka.actor.{Terminated, Props, ActorSystem}
 import akka.testkit.TestKit
+import op.trial.akka.util.StepParent
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 import scala.util.{Failure, Success}
 

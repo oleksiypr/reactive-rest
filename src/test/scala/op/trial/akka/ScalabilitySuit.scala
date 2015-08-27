@@ -29,7 +29,7 @@ class ScalabilitySuit extends TestKit(ActorSystem("ScalabilitySuit"))
       receiveWhile(1 second) {
         case WorkerCreated => workers += 1
       }
-      fail("test not completed")
+      fail("to be failed, test not completed!")
     }
   }
 }

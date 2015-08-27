@@ -1,6 +1,6 @@
-package op.trial.akka
+package op.trial.akka.util
 
-import akka.actor.{Terminated, Props, Actor, ActorSystem}
+import akka.actor.{Actor, ActorSystem, Props, Terminated}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 

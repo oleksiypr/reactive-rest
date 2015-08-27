@@ -1,4 +1,4 @@
-package op.trial.akka
+package op.trial.akka.util
 
 import akka.actor._
 
