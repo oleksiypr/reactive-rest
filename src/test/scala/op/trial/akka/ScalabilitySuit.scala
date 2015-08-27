@@ -9,6 +9,8 @@ import scala.language.postfixOps
 import ServerActor._
 import ScalabilitySuit._
 
+import scala.util.Try
+
 class ScalabilitySuit extends TestKit(ActorSystem("ScalabilitySuit"))
                         with WordSpecLike
                         with BeforeAndAfterAll {
@@ -37,7 +39,8 @@ object ScalabilitySuit {
   }
   class FakeServer extends ServerActor with FakeLifeCicleAware {
     def initWorker(workerProps: Props, exchange: HttpExchange) {}
-    def respond(status: Int, body: Array[Byte]) {}
+    def success(res: Any) {}
+    def failure(cause: Throwable) {}
     def receive: Actor.Receive = { case _ => () }
   }
   trait FakeLifeCicleAware extends LifeCicleAware {

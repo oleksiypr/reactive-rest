@@ -1,8 +1,8 @@
 package op.trial.akka
 
-import akka.actor.{Props, Actor}
+import akka.actor.{ Props, Actor}
 import com.sun.net.httpserver.HttpExchange
-import scala.util.{Failure, Success}
+import scala.util.{Try, Failure, Success}
 import ServerActor._
 
 abstract class ServerActor extends Actor with LifeCicleAware {
@@ -10,12 +10,17 @@ abstract class ServerActor extends Actor with LifeCicleAware {
   override def postStop() = shutDown()
 
   def initWorker(workerProps: Props, exchange: HttpExchange)
-  def respond(status: Int, body: Array[Byte])
+  def success(res: Any): Unit
+  def failure(cause: Throwable): Unit
+
+  def respond(result: Try[Any]) = result match {
+    case Success(res) => success(res)
+    case Failure(cause) => failure(cause)
+  }
 
   val service: Receive = {
     case Service(workerProps, exchange) => initWorker(workerProps, exchange)
-    case Success(res) => respond(200, res.toString.getBytes)
-    case Failure(cause) => respond(500, cause.getMessage.getBytes)
+    case result: Try[_] => respond(result)
   }
 }
 

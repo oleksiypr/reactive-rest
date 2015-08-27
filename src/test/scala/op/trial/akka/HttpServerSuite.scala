@@ -1,6 +1,6 @@
 package op.trial.akka
 
-import akka.actor.{Props, ActorSystem}
+import akka.actor.{Actor, Props, ActorSystem}
 import akka.routing.{Listen, Listeners}
 import akka.testkit.TestKit
 import org.scalatest.{BeforeAndAfterEach, FunSuiteLike, BeforeAndAfterAll}
@@ -43,8 +43,7 @@ class HttpServerSuite extends TestKit(ActorSystem("ServerSuite"))
   test("server should receive HTTP requests") {
     val server = testServer(
       mappings = Map(
-        "/foo" -> Props(new WorkerMock),
-        "/bar" -> Props(new WorkerMock),
+        "/foo" -> Props(new FakeWorker),
         "/error" -> Props(new ErrorWorker)
       ),"server-receive-http")
 
@@ -53,10 +52,6 @@ class HttpServerSuite extends TestKit(ActorSystem("ServerSuite"))
       val result = Await.result(resp, 2 second)
       assert(result.getStatusCode == 200)
       assert(result.getResponseBody == "well done")
-      assert (expectMsgPF() {
-        case Service(wp ,ex) => true
-        case _ => false
-      })
     }
     withClue("error response status in case of internal error") {
       val resp = Http(url(s"http://localhost:$port/$app/error"))
@@ -86,8 +81,16 @@ class HttpServerSuite extends TestKit(ActorSystem("ServerSuite"))
 }
 
 object HttpServerSuite {
-  class WorkerMock   extends RequestWorker((_: Unit) => "well done", ())
-  class ErrorWorker  extends RequestWorker((_: Unit) => throw new Error("error message"), ())
+  class FakeWorker extends Actor {
+    context.parent ! Success("well done")
+    context stop self
+    val receive: Actor.Receive = { case _ => () }
+  }
+  class ErrorWorker extends Actor {
+    context.parent ! Failure(new Error("error message"))
+    context stop self
+    val receive: Actor.Receive = { case _ => () }
+  }
 
   def isListening(port: Int): Boolean = Try {
     val socket = new Socket()

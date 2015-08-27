@@ -6,7 +6,7 @@ import com.sun.net.httpserver.HttpExchange
 import op.trial.akka.ScalabilitySuit.FakeLifeCicleAware
 import op.trial.akka.ServerActor._
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSuiteLike}
-import scala.util.Success
+import scala.util.{Try, Success}
 
 class ServerActorSuit extends TestKit(ActorSystem("ServerActorSuit"))
                          with FunSuiteLike
@@ -25,7 +25,7 @@ class ServerActorSuit extends TestKit(ActorSystem("ServerActorSuit"))
 
     withClue("server should respond with result on Success") {
       server ! Success("OK")
-      expectMsg(ServerRespond(200, "OK"))
+      expectMsg(ServerRespond("OK"))
     }
 
     system stop server
@@ -34,7 +34,7 @@ class ServerActorSuit extends TestKit(ActorSystem("ServerActorSuit"))
 
 object ServerActorSuit {
   case object WorkerCreated
-  case class ServerRespond(code: Int, result: Any)
+  case class ServerRespond(result: Any)
 
   class FakeWorker(testActor: ActorRef) extends Actor {
     testActor ! WorkerCreated
@@ -42,10 +42,9 @@ object ServerActorSuit {
     val receive: Receive = { case _ => () }
   }
   class TestServerActor(probe: ActorRef) extends ServerActor with FakeLifeCicleAware {
-    def initWorker(workerProps: Props, exchange: HttpExchange) = {
-      context.actorOf(workerProps)
-    }
-    def respond(status: Int, body: Array[Byte]) = probe ! ServerRespond(status, new String(body))
+    def initWorker(workerProps: Props, exchange: HttpExchange) = context.actorOf(workerProps)
+    def success(res: Any) = probe ! ServerRespond(res)
+    def failure(cause: Throwable) {}
     def receive = service
   }
 }
