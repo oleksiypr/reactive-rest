@@ -2,19 +2,33 @@ package op.trial.akka
 
 import akka.actor.Props
 import com.sun.net.httpserver.HttpExchange
+import ServerActor._
+import HttpReactiveServer._
 
-class HttpReactiveServer(val app: String, val port: Int, val mappings: Map[String, Props] = Map.empty) extends ServerActor[HttpExchange]
+class HttpReactiveServer(val app: String, val port: Int, val mappings: Map[String, Props] = Map.empty) extends ServerActor
                                                                                                           with HttpServerAware {
   override def handleGet(path: String, exchange: HttpExchange) {
+    val job = new HttpJob(exchange)
     mappings get path match {
-      case Some(workerProps) => self ! ServerActor.Service(workerProps, exchange)
-      case None => writeResponse(status = 404, Array.empty[Byte], exchange)
+      case Some(workerProps) => self ! Service(workerProps, job)
+      case None => job.notFound()
     }
   }
 
   def receive = service
-  def success(res: Any, exchange: HttpExchange) = writeResponse(status = 200, res.asInstanceOf[String].getBytes, exchange)
-  def failure(cause: Throwable, exchange: HttpExchange) = writeResponse(status = 500, cause.getMessage.getBytes, exchange)
+}
+
+object HttpReactiveServer {
+  class HttpJob(exchange: HttpExchange) extends Job {
+    def success(res: Any) = writeResponse(status = 200, res.asInstanceOf[String].getBytes)
+    def failure(cause: Throwable) = writeResponse(status = 500, cause.getMessage.getBytes)
+    def notFound() = writeResponse(status = 404,  Array.empty[Byte])
+    def writeResponse(status: Int, body: Array[Byte]) {
+      exchange.sendResponseHeaders(status, 0L)
+      exchange.getResponseBody.write(body)
+      exchange.getResponseBody.close()
+    }
+  }
 }
 
 

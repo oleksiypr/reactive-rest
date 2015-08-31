@@ -5,36 +5,37 @@ import scala.concurrent.Future
 import scala.util.{Try, Failure, Success}
 import ServerActor._
 
-abstract class ServerActor[E] extends Actor with LifeCicleAware {
-  private[this] var exchanges = Map.empty[ActorRef, E]
-  protected[this] def load: Int = exchanges.size
+abstract class ServerActor extends Actor with LifeCicleAware {
+  private[this] var jobs = Map.empty[ActorRef, Job]
+  protected[this] def load: Int = jobs.size
 
   override def preStart() = startUp()
   override def postStop() = shutDown()
 
-  def success(res: Any, exchange: E): Unit
-  def failure(cause: Throwable, exchange: E): Unit
-
   val service: Receive = {
-    case Service(workerProps, exchange: E) => initWorker(workerProps, exchange)
+    case Service(workerProps, job) => initWorker(workerProps, job)
     case result: Try[_] =>  handleResult(result)
   }
 
-  private def initWorker(workerProps: Props, exchange: E) = exchanges += context.actorOf(workerProps) -> exchange
+  private def initWorker(workerProps: Props, job: Job) = jobs += context.actorOf(workerProps) -> job
   private def handleResult(result: Try[Any]) {
     import context.dispatcher
     val worker = sender()
-    exchanges get worker foreach { exchange =>
-      exchanges -= worker
-      Future(respond(result, exchange))
+    jobs get worker foreach { job =>
+      jobs -= worker
+      Future(respond(result, job))
     }
   }
-  private def respond(result: Try[Any], exchange: E) = result match {
-    case Success(res) => success(res, exchange)
-    case Failure(cause) => failure(cause, exchange)
+  private def respond(result: Try[Any], job: Job) = result match {
+    case Success(res) => job.success(res)
+    case Failure(cause) => job.failure(cause)
   }
 }
 
 object ServerActor {
-  case class Service[E](workerProps: Props, exchange: E)
+  trait Job {
+    def success(res: Any): Unit
+    def failure(cause: Throwable): Unit
+  }
+  case class Service(workerProps: Props, job: Job)
 }

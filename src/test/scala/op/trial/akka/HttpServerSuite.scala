@@ -44,8 +44,8 @@ class HttpServerSuite extends TestKit(ActorSystem("ServerSuite"))
   test("server should receive HTTP requests") {
     val server = testServer(
       mappings = Map(
-        "/foo" -> Props(new FakeWorker(Success("well done"))),
-        "/error" -> Props(new FakeWorker(Failure(new Error("error message"))))
+        "/foo" -> Props(new FakeWorker(messageToParent = Success("well done"))),
+        "/error" -> Props(new FakeWorker(messageToParent = Failure(new Error("error message"))))
       ),"server-receive-http")
 
     withClue("success") {

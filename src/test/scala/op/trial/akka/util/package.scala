@@ -15,4 +15,8 @@ package object util {
       super.work()
     }
   }
+  trait FakeLifeCicleAware extends LifeCicleAware {
+    def startUp() {}
+    def shutDown() {}
+  }
 }

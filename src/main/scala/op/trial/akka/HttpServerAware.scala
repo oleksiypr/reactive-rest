@@ -18,12 +18,6 @@ trait HttpServerAware extends LifeCicleAware {
     }
   }
 
-  def writeResponse(status: Int, body: Array[Byte], exchange: HttpExchange) {
-    exchange.sendResponseHeaders(status, 0L)
-    exchange.getResponseBody.write(body)
-    exchange.getResponseBody.close()
-  }
-
   def startUp() {
     server.setExecutor(executor)
     server.createContext(s"/$app", httpHandler)

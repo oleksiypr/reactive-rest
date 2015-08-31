@@ -2,7 +2,6 @@ package op.trial.akka
 
 import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.testkit.TestKit
-import op.trial.akka.ScalabilitySuit.FakeLifeCicleAware
 import op.trial.akka.ServerActor._
 import op.trial.akka.util._
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSuiteLike}
@@ -25,12 +24,15 @@ class ServerActorSuite extends TestKit(ActorSystem("ServerActorSuit"))
     server ! Service(Props(new ProbeFakeWorker(
       probe = testActor,
       messageToProbe = WorkerCreated,
-      messageToParent = Success("OK"))), ())
+      messageToParent = Success("OK"))), new FakeJob(testActor))
 
     withClue("server actor should create new worker on 'Service' message") {
       expectMsg(ServerLoad(1))
       expectMsg(WorkerCreated)
-      expectMsg(ServerRespond("OK", workersCount = 0))
+      expectMsg("OK")
+
+      server ! GetServerLoad
+      expectMsg(ServerLoad(0))
     }
 
     system stop server
@@ -39,16 +41,21 @@ class ServerActorSuite extends TestKit(ActorSystem("ServerActorSuit"))
 
 object ServerActorSuite {
   case object WorkerCreated
+  case object GetServerLoad
   case class ServerLoad(load: Int)
   case class ServerRespond(result: Any, workersCount: Int)
 
-  class TestServerActor(probe: ActorRef) extends ServerActor[Unit] with FakeLifeCicleAware {
+  class FakeJob(probe: ActorRef) extends Job {
+    def success(res: Any) = probe ! res
+    def failure(cause: Throwable) {}
+  }
+
+  class TestServerActor(probe: ActorRef) extends ServerActor with FakeLifeCicleAware {
     probe ! ServerLoad(load)
 
-    def success(res: Any, exchange: Unit) = probe ! ServerRespond(res, workersCount = load)
-    def failure(cause: Throwable, exchange: Unit) {}
     def receive = {
-      case s@Service(wp, e) => service(s); probe ! ServerLoad(load)
+      case s: Service => service(s); probe ! ServerLoad(load)
+      case GetServerLoad => probe ! ServerLoad(load)
       case msg => service(msg)
     }
   }
