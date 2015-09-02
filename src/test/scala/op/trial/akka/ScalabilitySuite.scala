@@ -1,14 +1,13 @@
 package op.trial.akka
 
-import akka.actor.{Actor, Props, ActorSystem}
+import akka.actor.{ActorRef, Actor, Props, ActorSystem}
+import akka.cluster.ClusterEvent
 import akka.testkit.TestKit
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
-import scala.concurrent.duration._
 import scala.language.postfixOps
-import ServerActor._
 import ScalabilitySuite._
 
-class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuit"))
+class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuite"))
                           with WordSpecLike
                           with BeforeAndAfterAll {
 
@@ -17,21 +16,21 @@ class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuit"))
   val server = system.actorOf(Props(new FakeServer))
   case object WorkerCreated
 
-  "Server" must {
-    "process no more then 8 requests at once" in {
-      var workers = 0
-      for (i <- 1 to 10) {
-        server ! Service(Props[FakeWorker], null)
+  "Server cluster" must {
+    "joint self to a single node cluster" in {
+      val serverCluster = system.actorOf(Props(new TestCluster(testActor)), "server-cluster")
+      expectMsgPF() {
+        case state: ClusterEvent.CurrentClusterState => ()
       }
-      receiveWhile(1 second) {
-        case WorkerCreated => workers += 1
-      }
-      fail("to be failed, test not completed!")
     }
   }
 }
 
 object ScalabilitySuite {
+  class TestCluster(probe: ActorRef) extends ServerCluster {
+    override def receive: Receive = { case msg => probe ! msg; super.receive(msg) }
+  }
+
   import op.trial.akka.util.FakeLifeCicleAware
   class FakeWorker() extends WorkerActor {
     def work() {}

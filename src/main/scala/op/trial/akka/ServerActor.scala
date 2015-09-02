@@ -7,7 +7,7 @@ import ServerActor._
 
 abstract class ServerActor extends Actor with LifeCicleAware {
   private[this] var jobs = Map.empty[ActorRef, Job]
-  protected[this] def load: Int = jobs.size
+  protected[this] def load = jobs.size
 
   override def preStart() = startUp()
   override def postStop() = shutDown()

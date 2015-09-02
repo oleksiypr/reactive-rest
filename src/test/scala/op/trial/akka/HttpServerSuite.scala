@@ -11,7 +11,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-class HttpServerSuite extends TestKit(ActorSystem("ServerSuite"))
+class HttpServerSuite extends TestKit(ActorSystem("HttpServerSuite"))
                          with FunSuiteLike
                          with BeforeAndAfterAll
                          with BeforeAndAfterEach {
