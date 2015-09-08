@@ -41,7 +41,7 @@ class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuite"))
       system stop workerNode
       system stop serverCluster
 
-      def expectMemberUp(onMemberUp : Member => Unit) = expectMsgPF() { case ClusterEvent.MemberUp(m) => onMemberUp }
+      def expectMemberUp(onMemberUp : Member => Unit) = expectMsgPF() { case ClusterEvent.MemberUp(m) => onMemberUp(m) }
     }
   }
 }
