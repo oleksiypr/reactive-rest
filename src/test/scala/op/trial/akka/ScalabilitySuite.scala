@@ -34,6 +34,7 @@ class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuite"))
       expectMsgPF() { case state: ClusterEvent.CurrentClusterState => () }
       expectMemberUp(m => assert(m.address == address))
       expectMemberUp(m => {})
+
       serverCluster ! GetMembers
       expectMsg(Members(count = 2))
 
