@@ -7,7 +7,7 @@ import op.trial.akka.util._
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSuiteLike}
 import scala.util.Success
 
-class ServerActorSuite extends TestKit(ActorSystem("ServerActorSuit"))
+class ServerActorSuite extends TestKit(ActorSystem("ServerActorSuite"))
                          with FunSuiteLike
                          with BeforeAndAfterAll
                          with BeforeAndAfterEach {

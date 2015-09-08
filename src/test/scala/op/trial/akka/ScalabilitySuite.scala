@@ -5,22 +5,26 @@ import akka.cluster.ClusterEvent
 import akka.testkit.TestKit
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 import scala.language.postfixOps
-import ScalabilitySuite._
 
 class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuite"))
                           with WordSpecLike
                           with BeforeAndAfterAll {
 
-  override protected def afterAll() =  system.shutdown()
+  import ScalabilitySuite._
 
-  val server = system.actorOf(Props(new FakeServer))
-  case object WorkerCreated
+  val serverCluster = system.actorOf(Props(new TestCluster(testActor)), "server-cluster")
+  override protected def afterAll() =  {
+    system stop serverCluster
+    system.shutdown()
+  }
 
   "Server cluster" must {
     "joint self to a single node cluster" in {
-      val serverCluster = system.actorOf(Props(new TestCluster(testActor)), "server-cluster")
       expectMsgPF() {
-        case state: ClusterEvent.CurrentClusterState => ()
+        case state: ClusterEvent.CurrentClusterState => assert(state.members.size == 1)
+      }
+      expectMsgPF() {
+        case ClusterEvent.MemberUp(member) => ()
       }
     }
   }
@@ -28,6 +32,7 @@ class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuite"))
 
 object ScalabilitySuite {
   class TestCluster(probe: ActorRef) extends ServerCluster {
+    cluster.subscribe(self, classOf[ClusterEvent.MemberUp])
     override def receive: Receive = { case msg => probe ! msg; super.receive(msg) }
   }
 
