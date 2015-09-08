@@ -1,7 +1,7 @@
 package op.trial.akka
 
 import akka.actor._
-import akka.cluster.ClusterEvent
+import akka.cluster.{Member, ClusterEvent}
 import akka.testkit.TestKit
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 import scala.language.postfixOps
@@ -9,16 +9,16 @@ import scala.language.postfixOps
 class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuite"))
                           with WordSpecLike
                           with BeforeAndAfterAll {
-
   import ScalabilitySuite._
 
   override protected def afterAll() = shutdown()
-  def serverProps1 = Props(new FakeServer1(testActor))
-  def serverProps2 = Props(new FakeServer2)
+
+  val singleNodeClusterProps = Props(new SingleNodeCluster(testActor, Props(new TellStartFakeServer(testActor))))
+  val manyNodesClusterProps = Props(new ManyNodesCluster(testActor, Props(new FakeServer)))
 
   "Server cluster" must {
     "init itself: joint self to a single node cluster and start server actor" in {
-      val serverCluster = system.actorOf(Props(new TestCluster1(testActor, serverProps1)), "test-cluster-1")
+      val serverCluster = system.actorOf(singleNodeClusterProps, "test-cluster-1")
       expectMsg(ServerActorStarted)
       expectMsgPF() {
         case state: ClusterEvent.CurrentClusterState => assert(state.members.size == 1)
@@ -26,26 +26,21 @@ class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuite"))
       system stop serverCluster
     }
     "accept new member" in {
-      val serverCluster = system.actorOf(Props(new TestCluster2(testActor, serverProps2)),  "test-cluster-2")
+      val serverCluster = system.actorOf(manyNodesClusterProps,  "test-cluster-2")
       serverCluster ! GetAddress
       val address = expectMsgPF() { case adr: Address => adr }
       val workerNode = ActorSystem("ScalabilitySuite").actorOf(Props(new WorkerNode(address)))
 
-      expectMsgPF() {
-        case state: ClusterEvent.CurrentClusterState => ()
-      }
-      expectMsgPF() {
-        case ClusterEvent.MemberUp(m) => assert(m.address == address)
-      }
-      expectMsgPF() {
-        case ClusterEvent.MemberUp(m) => ()
-      }
-
+      expectMsgPF() { case state: ClusterEvent.CurrentClusterState => () }
+      expectMemberUp(m => assert(m.address == address))
+      expectMemberUp(m => {})
       serverCluster ! GetMembers
       expectMsg(Members(count = 2))
 
       system stop workerNode
       system stop serverCluster
+
+      def expectMemberUp(onMemberUp : Member => Unit) = expectMsgPF() { case ClusterEvent.MemberUp(m) => onMemberUp }
     }
   }
 }
@@ -56,21 +51,20 @@ object ScalabilitySuite {
   case object GetMembers
   case class Members(count: Int)
 
-  class TestCluster1(probe: ActorRef, serverProps: Props) extends ServerCluster(serverProps) {
-    override def receive: Receive = { case msg => probe ! msg; super.receive(msg) }
-  }
-  class TestCluster2(probe: ActorRef, serverProps: Props) extends ServerCluster(serverProps) {
+  class ManyNodesCluster(probe: ActorRef, serverProps: Props) extends SingleNodeCluster(probe, serverProps) {
     override def receive: Receive = {
       case GetAddress => probe ! cluster.selfAddress
       case GetMembers => probe ! Members(count = cluster.state.members.size)
-      case msg => probe ! msg; super.receive(msg)
+      case msg => super.receive(msg)
     }
   }
-  class FakeServer1(probe: ActorRef) extends Actor {
-    probe ! ServerActorStarted
-    val receive: Actor.Receive = { case _ => () }
+  class SingleNodeCluster(probe: ActorRef, serverProps: Props) extends ServerCluster(serverProps) {
+    override def receive: Receive = { case msg => probe ! msg; super.receive(msg) }
   }
-  class FakeServer2 extends Actor {
+  class TellStartFakeServer(probe: ActorRef) extends FakeServer {
+    probe ! ServerActorStarted
+  }
+  class FakeServer extends Actor {
     val receive: Actor.Receive = { case _ => () }
   }
 }
