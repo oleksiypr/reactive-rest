@@ -1,14 +1,12 @@
 package op.trial.akka
 
-
 import akka.actor.{Terminated, Props, ActorSystem}
 import akka.testkit.TestKit
 import op.trial.akka.util.StepParent
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 import scala.util.{Failure, Success}
 
-class RequestWorkerSuit extends TestKit(ActorSystem("RequestWorkerSuit")) with WordSpecLike
-                                                                          with BeforeAndAfterAll {
+class RequestWorkerSuite extends TestKit(ActorSystem("RequestWorkerSuit")) with WordSpecLike with BeforeAndAfterAll {
   override protected def afterAll() = system.shutdown()
 
   "RequestWorker" must {

@@ -29,7 +29,8 @@ class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuite"))
       val serverCluster = system.actorOf(manyNodesClusterProps,  "test-cluster-2")
       serverCluster ! GetAddress
       val address = expectMsgPF() { case adr: Address => adr }
-      val workerNode = ActorSystem("ScalabilitySuite").actorOf(Props(new WorkerNode(address)))
+      val workerSystem = ActorSystem("ScalabilitySuite")
+      val workerNode = workerSystem.actorOf(Props(new WorkerNode(address)))
 
       expectMsgPF() { case state: ClusterEvent.CurrentClusterState => () }
       expectMemberUp(m => assert(m.address == address))
@@ -39,6 +40,7 @@ class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuite"))
       expectMsg(Members(count = 2))
 
       system stop workerNode
+      workerSystem.shutdown()
       system stop serverCluster
 
       def expectMemberUp(onMemberUp : Member => Unit) = expectMsgPF() { case ClusterEvent.MemberUp(m) => onMemberUp(m) }

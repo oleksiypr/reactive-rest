@@ -20,10 +20,11 @@ class HttpReactiveServer(val app: String, val port: Int, val mappings: Map[Strin
 
 object HttpReactiveServer {
   class HttpJob(exchange: HttpExchange) extends Job {
-    def success(res: Any) = writeResponse(status = 200, res.asInstanceOf[String].getBytes)
+    def success(res: Any)         = writeResponse(status = 200, res.asInstanceOf[String].getBytes)
     def failure(cause: Throwable) = writeResponse(status = 500, cause.getMessage.getBytes)
-    def notFound() = writeResponse(status = 404,  Array.empty[Byte])
-    def writeResponse(status: Int, body: Array[Byte]) {
+    def notFound()                = writeResponse(status = 404, Array.empty[Byte])
+
+    private[this] def writeResponse(status: Int, body: Array[Byte]) {
       exchange.sendResponseHeaders(status, 0L)
       exchange.getResponseBody.write(body)
       exchange.getResponseBody.close()
