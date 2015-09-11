@@ -1,50 +1,52 @@
 package op.trial.akka
 
 import akka.actor._
-import akka.cluster.{Member, ClusterEvent}
+import akka.cluster.ClusterEvent
+import akka.remote.RemoteScope
 import akka.testkit.TestKit
-import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
+import op.trial.akka.ServerActor.Job
+import op.trial.akka.util.FakeClusterWorker
+import org.scalatest.{FunSuiteLike, BeforeAndAfterAll}
 import scala.language.postfixOps
 
 class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuite"))
-                          with WordSpecLike
+                          with FunSuiteLike
                           with BeforeAndAfterAll {
   import ScalabilitySuite._
 
-  override protected def afterAll() = shutdown()
+  override protected def afterAll() {
+    workerSystem.shutdown()
+    shutdown()
+  }
 
-  val singleNodeClusterProps = Props(new SingleNodeCluster(testActor, Props(new TellStartFakeServer(testActor))))
-  val manyNodesClusterProps = Props(new ManyNodesCluster(testActor, Props(new FakeServer)))
+  val serverClusterProps = Props(new TestCluster(testActor, Props(new FakeServer(testActor))))
+  val workerSystem = ActorSystem("ScalabilitySuite")
 
-  "Server cluster" must {
-    "init itself: joint self to a single node cluster and start server actor" in {
-      val serverCluster = system.actorOf(singleNodeClusterProps, "test-cluster-1")
-      expectMsg(ServerActorStarted)
-      expectMsgPF() {
-        case state: ClusterEvent.CurrentClusterState => assert(state.members.size == 1)
-      }
-      system stop serverCluster
-    }
-    "accept new member" in {
-      val serverCluster = system.actorOf(manyNodesClusterProps,  "test-cluster-2")
-      serverCluster ! GetAddress
-      val address = expectMsgPF() { case adr: Address => adr }
-      val workerSystem = ActorSystem("ScalabilitySuite")
-      val workerNode = workerSystem.actorOf(Props(new WorkerNode(address)))
+  test("cluster: start itself, add worker node, deploy worker") {
+    val serverCluster = system.actorOf(serverClusterProps, "test-cluster-2")
+    expectMsg(ServerActorStarted)
+    expectMsgPF() { case state: ClusterEvent.CurrentClusterState => assert(state.members.size == 1) }
 
-      expectMsgPF() { case state: ClusterEvent.CurrentClusterState => () }
-      expectMemberUp(m => assert(m.address == address))
-      expectMemberUp(m => {})
+    serverCluster ! GetAddress
+    val clusterAddress = expectMsgPF() { case adr: Address => adr }
+    println("cluster address: " + clusterAddress)
 
-      serverCluster ! GetMembers
-      expectMsg(Members(count = 2))
 
-      system stop workerNode
-      workerSystem.shutdown()
-      system stop serverCluster
+    val workerNode = workerSystem.actorOf(Props(new TestWorkerNode(testActor, clusterAddress)))
+    workerNode ! GetAddress
+    val workerAddress = expectMsgPF() { case adr: Address => adr }
+    println("worker node address: " + workerAddress)
 
-      def expectMemberUp(onMemberUp : Member => Unit) = expectMsgPF() { case ClusterEvent.MemberUp(m) => onMemberUp(m) }
-    }
+    expectMsgPF() { case ClusterEvent.MemberUp(m) => assert(m.address == clusterAddress) }
+    expectMsgPF() { case ClusterEvent.MemberUp(m) => assert(m.address == workerAddress) }
+
+    serverCluster ! GetMembers
+    expectMsg(Members(count = 2))
+
+    serverCluster ! GetServer
+    val server = expectMsgPF() { case s: ActorRef => s }
+    server ! TestRemoteRequest(workerAddress)
+    expectMsg(workerAddress)
   }
 }
 
@@ -52,23 +54,39 @@ object ScalabilitySuite {
   case object ServerActorStarted
   case object GetAddress
   case object GetMembers
+  case object GetServer
+  case class TestRemoteRequest(node: Address)
   case class Members(count: Int)
 
-  class ManyNodesCluster(probe: ActorRef, serverProps: Props) extends SingleNodeCluster(probe, serverProps) {
+  class FakeJob extends Job {
+    def success(res: Any) {}
+    def failure(cause: Throwable) {}
+  }
+
+  class TestWorkerNode(probe:  ActorRef, cluster: Address) extends WorkerNode(cluster) {
     override def receive: Receive = {
-      case GetAddress => probe ! cluster.selfAddress
-      case GetMembers => probe ! Members(count = cluster.state.members.size)
+      case GetAddress => probe ! node.selfAddress
       case msg => super.receive(msg)
     }
   }
-  class SingleNodeCluster(probe: ActorRef, serverProps: Props) extends ServerCluster(serverProps) {
-    override def receive: Receive = { case msg => probe ! msg; super.receive(msg) }
+
+  class TestCluster(probe: ActorRef, serverProps: Props) extends ServerCluster(serverProps) {
+    override def receive: Receive = {
+      case GetMembers => probe ! Members(count = cluster.state.members.size)
+      case GetServer  => probe ! server
+      case GetAddress => probe ! cluster.selfAddress
+      case msg        => probe ! msg; super.receive(msg)
+    }
   }
-  class TellStartFakeServer(probe: ActorRef) extends FakeServer {
+  class FakeServer(probe: ActorRef) extends Actor {
+    import FakeServer._
     probe ! ServerActorStarted
+    def receive: Actor.Receive = {
+      case TestRemoteRequest(node) => context.actorOf(workerProps(probe).withDeploy(Deploy(scope = RemoteScope(node))))
+    }
   }
-  class FakeServer extends Actor {
-    val receive: Actor.Receive = { case _ => () }
+  object FakeServer {
+    def workerProps(probe: ActorRef) = Props(new FakeClusterWorker(probe))
   }
 }
 
