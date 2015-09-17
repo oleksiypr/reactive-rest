@@ -53,10 +53,11 @@ object ServerActorSuite {
   class TestServerActor(probe: ActorRef) extends ServerActor with FakeLifeCicleAware {
     probe ! ServerLoad(load)
 
+    def localDeploy(workerProps: Props) = context.actorOf(workerProps)
     def receive = {
-      case s: Service => service(s); probe ! ServerLoad(load)
+      case s: Service => service(localDeploy)(s); probe ! ServerLoad(load)
       case GetServerLoad => probe ! ServerLoad(load)
-      case msg => service(msg)
+      case msg => service(localDeploy)(msg)
     }
   }
 }

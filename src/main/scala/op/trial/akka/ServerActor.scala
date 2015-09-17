@@ -12,12 +12,11 @@ abstract class ServerActor extends Actor with LifeCicleAware {
   override def preStart() = startUp()
   override def postStop() = shutDown()
 
-  val service: Receive = {
-    case Service(workerProps, job) => initWorker(workerProps, job)
+  def service(deploy: WorkerDeploy): Receive = {
+    case Service(workerProps, job) => jobs += deploy(workerProps) -> job
     case result: Try[_] =>  handleResult(result)
   }
 
-  private def initWorker(workerProps: Props, job: Job) = jobs += context.actorOf(workerProps) -> job
   private def handleResult(result: Try[Any]) {
     import context.dispatcher
     val worker = sender()
@@ -33,6 +32,7 @@ abstract class ServerActor extends Actor with LifeCicleAware {
 }
 
 object ServerActor {
+  type WorkerDeploy = Props => ActorRef
   trait Job {
     def success(res: Any): Unit
     def failure(cause: Throwable): Unit

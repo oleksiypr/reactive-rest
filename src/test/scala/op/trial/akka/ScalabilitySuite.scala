@@ -1,11 +1,11 @@
 package op.trial.akka
 
 import akka.actor._
-import akka.cluster.ClusterEvent
+import akka.cluster.{Cluster, ClusterEvent}
 import akka.remote.RemoteScope
 import akka.testkit.TestKit
-import op.trial.akka.ServerActor.Job
-import op.trial.akka.util.FakeClusterWorker
+import op.trial.akka.ServerActor.{Service, Job}
+import op.trial.akka.util._
 import org.scalatest.{FunSuiteLike, BeforeAndAfterAll}
 import scala.language.postfixOps
 
@@ -45,7 +45,8 @@ class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuite"))
 
     serverCluster ! GetServer
     val server = expectMsgPF() { case s: ActorRef => s }
-    server ! TestRemoteRequest(workerAddress)
+
+    server ! Service(FakeServer.workerProps(testActor), new FakeJob)
     expectMsg(workerAddress)
   }
 }
@@ -78,12 +79,23 @@ object ScalabilitySuite {
       case msg        => probe ! msg; super.receive(msg)
     }
   }
-  class FakeServer(probe: ActorRef) extends Actor {
-    import FakeServer._
+  class FakeServer(probe: ActorRef) extends ServerActor with FakeLifeCicleAware {
+    val cluster  = Cluster(context.system)
+    cluster.subscribe(self, classOf[ClusterEvent.MemberUp])
+
     probe ! ServerActorStarted
-    def receive: Actor.Receive = {
-      case TestRemoteRequest(node) => context.actorOf(workerProps(probe).withDeploy(Deploy(scope = RemoteScope(node))))
+
+    def remoteDeploy(address: Address)(workerProps: Props) = context.actorOf(workerProps.withDeploy(Deploy(scope = RemoteScope(address))))
+    def receive: Receive = awaiting
+
+    val awaiting: Receive = {
+      case Service(_, job) => job.failure(new IllegalStateException("Cluster is not ready."))
+      case state: ClusterEvent.CurrentClusterState =>
+        val notMe = state.members.filterNot(_.address == cluster.selfAddress)
+        if (notMe.nonEmpty) context become active(workerNode = notMe.head.address)
+      case ClusterEvent.MemberUp(m) if m.address != cluster.selfAddress => context become active(workerNode = m.address)
     }
+    def active(workerNode: Address): Receive = super.service(remoteDeploy(workerNode))
   }
   object FakeServer {
     def workerProps(probe: ActorRef) = Props(new FakeClusterWorker(probe))

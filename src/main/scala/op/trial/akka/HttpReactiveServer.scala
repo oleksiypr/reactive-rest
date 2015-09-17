@@ -15,7 +15,8 @@ class HttpReactiveServer(val app: String, val port: Int, val mappings: Map[Strin
     }
   }
 
-  def receive = service
+  def localDeploy(workerProps: Props) = context.actorOf(workerProps)
+  val receive = service(localDeploy)
 }
 
 object HttpReactiveServer {
