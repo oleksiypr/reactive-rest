@@ -46,7 +46,7 @@ class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuite"))
     serverCluster ! GetServer
     val server = expectMsgPF() { case s: ActorRef => s }
 
-    server ! Service(FakeServer.workerProps(testActor), new FakeJob)
+    server ! Service(workerProps(testActor), new FakeJob)
     expectMsg(workerAddress)
   }
 }
@@ -79,26 +79,9 @@ object ScalabilitySuite {
       case msg        => probe ! msg; super.receive(msg)
     }
   }
-  class FakeServer(probe: ActorRef) extends ServerActor with FakeLifeCicleAware {
-    val cluster  = Cluster(context.system)
-    cluster.subscribe(self, classOf[ClusterEvent.MemberUp])
-
+  class FakeServer(probe: ActorRef) extends ServerActorRemote with FakeLifeCicleAware {
     probe ! ServerActorStarted
-
-    def remoteDeploy(address: Address)(workerProps: Props) = context.actorOf(workerProps.withDeploy(Deploy(scope = RemoteScope(address))))
-    def receive: Receive = awaiting
-
-    val awaiting: Receive = {
-      case Service(_, job) => job.failure(new IllegalStateException("Cluster is not ready."))
-      case state: ClusterEvent.CurrentClusterState =>
-        val notMe = state.members.filterNot(_.address == cluster.selfAddress)
-        if (notMe.nonEmpty) context become active(workerNode = notMe.head.address)
-      case ClusterEvent.MemberUp(m) if m.address != cluster.selfAddress => context become active(workerNode = m.address)
-    }
-    def active(workerNode: Address): Receive = super.service(remoteDeploy(workerNode))
   }
-  object FakeServer {
-    def workerProps(probe: ActorRef) = Props(new FakeClusterWorker(probe))
-  }
+  def workerProps(probe: ActorRef) = Props(new FakeClusterWorker(probe))
 }
 
