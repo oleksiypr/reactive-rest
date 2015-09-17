@@ -1,11 +1,12 @@
-package op.trial.akka
+package op.trial.akka.web
 
 import java.net.{InetSocketAddress, Socket}
 
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.TestKit
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike}
 import op.trial.akka.util._
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike}
+
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps

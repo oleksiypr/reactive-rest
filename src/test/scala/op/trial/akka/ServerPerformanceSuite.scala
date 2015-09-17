@@ -3,6 +3,7 @@ package op.trial.akka
 import akka.actor.{Actor, Props, ActorSystem}
 import akka.testkit.TestKit
 import com.ning.http.client.Response
+import op.trial.akka.web.HttpReactiveServer
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 import scala.concurrent.Await
 import scala.concurrent.duration._

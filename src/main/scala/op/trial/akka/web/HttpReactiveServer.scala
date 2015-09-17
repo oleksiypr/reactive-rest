@@ -1,9 +1,10 @@
-package op.trial.akka
+package op.trial.akka.web
 
 import akka.actor.Props
 import com.sun.net.httpserver.HttpExchange
-import ServerActor._
-import HttpReactiveServer._
+import op.trial.akka.ServerActor
+import op.trial.akka.ServerActor.{Job, Service}
+import op.trial.akka.web.HttpReactiveServer._
 
 class HttpReactiveServer(val app: String, val port: Int, val mappings: Map[String, Props] = Map.empty) extends ServerActor
                                                                                                           with HttpServerAware {

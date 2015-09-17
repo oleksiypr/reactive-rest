@@ -1,7 +1,7 @@
-package op.trial.akka
+package op.trial.akka.cluster
 
-import akka.actor.{Props, Actor}
-import akka.cluster.{ClusterEvent, Cluster}
+import akka.actor.{Actor, Props}
+import akka.cluster.{Cluster, ClusterEvent}
 
 class ServerCluster(serverProps: Props) extends Actor {
   val cluster  = Cluster(context.system)

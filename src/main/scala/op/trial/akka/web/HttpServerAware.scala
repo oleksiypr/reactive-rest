@@ -1,8 +1,10 @@
-package op.trial.akka
+package op.trial.akka.web
+
+import java.net.{InetSocketAddress, URI}
+import java.util.concurrent.{LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
-import java.net.{URI, InetSocketAddress}
-import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
+import op.trial.akka.LifeCicleAware
 
 trait HttpServerAware extends LifeCicleAware {
   val port: Int

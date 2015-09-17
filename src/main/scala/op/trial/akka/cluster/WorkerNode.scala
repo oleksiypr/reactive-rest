@@ -1,6 +1,6 @@
-package op.trial.akka
+package op.trial.akka.cluster
 
-import akka.actor.{Address, Actor}
+import akka.actor.{Actor, Address}
 import akka.cluster.Cluster
 
 class WorkerNode(cluster: Address) extends Actor {

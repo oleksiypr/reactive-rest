@@ -1,8 +1,9 @@
-package op.trial.akka
+package op.trial.akka.cluster
 
-import akka.actor.{Deploy, Props, Address}
+import akka.actor.{Address, Deploy, Props}
 import akka.cluster.{Cluster, ClusterEvent}
 import akka.remote.RemoteScope
+import op.trial.akka.ServerActor
 import op.trial.akka.ServerActor.Service
 
 abstract class ServerActorRemote extends ServerActor {

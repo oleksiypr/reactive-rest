@@ -1,12 +1,12 @@
-package op.trial.akka
+package op.trial.akka.cluster
 
 import akka.actor._
-import akka.cluster.{Cluster, ClusterEvent}
-import akka.remote.RemoteScope
+import akka.cluster.ClusterEvent
 import akka.testkit.TestKit
-import op.trial.akka.ServerActor.{Service, Job}
+import op.trial.akka.ServerActor.{Job, Service}
 import op.trial.akka.util._
-import org.scalatest.{FunSuiteLike, BeforeAndAfterAll}
+import org.scalatest.{BeforeAndAfterAll, FunSuiteLike}
+
 import scala.language.postfixOps
 
 class ScalabilitySuite extends TestKit(ActorSystem("ScalabilitySuite"))
